@@ -1,3 +1,5 @@
+#!/bin/bash
+
 logdir=/home/jo/plotlogs
 
 for f in $logdir/*; do 
