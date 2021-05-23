@@ -19,5 +19,5 @@ fi
 echo "$((running-1)) processes currently plotting to $tempdir. max is $maxplots. continuing." 
 
 # execute plotting command. the roundabout 'sh -c' manages attaching pid to log filename
-nohup $python_venv $chia_bin plots create -k 32 -b 3408 -r 4 -f $farmerkey -p $poolkey -t $tempdir -d $destdir > ${logdir}/$(date +%y%m%d-%H%M%S) &
+nohup $python_venv $chia_bin plots create -k 32 -b $max_ram -r 4 -f $farmerkey -p $poolkey -t $tempdir -d $destdir > ${logdir}/$(date +%y%m%d-%H%M%S) &
  

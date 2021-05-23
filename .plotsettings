@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# destination dir for plots
+destdir=""
+logdir=""
+tempdirs=("/mnt/temp1" "/mnt/temp2")
+destdirs=("/mnt/plots1" "/mnt/plots2" "/mnt/plots3")
+maxplotspertempdir=("3" "2") 
+
+# for deciding if a destdir can take more plots
+plot_size=108900000000
+
+# old variable, will soon be deprecated
+maxplots=3
+
+# max parallell plot processes running at the same time, take ram and cpu specs into account
+maxparallell=5
+
+# max parallell starts, take congestion between tempdir and destdir into account
+parallstarts=2
+
+# at what interval should starts occur?
+startdelay=50
+
+# chia plots create arguments
+farmerkey=""
+poolkey=""
+
+# a good value to go with if you have the ram to support it
+max_ram=3408
+
+# binaries
+python_venv="$HOME/chia-blockchain/venv/bin/python"
+chia_bin="$HOME/chia-blockchain/venv/bin/chia"

@@ -25,23 +25,38 @@ while true; do
 	# 1. maximum number of parallell plots exceeded? specify this value in $HOME/.plotsettings with respect to your systems available ram/cpu resources
 	
 	if [ ${#proc_pids[@]} -ge $maxparallell ]; then 
-		LOG info "${#proc_pids[@]} of max $maxparallell plotting processes running. no go."
+		LOG info "TEST 1: ${#proc_pids[@]} of max $maxparallell plotting processes running. no go."
 		test1=0
-	else test1=1 && LOG info "${#proc_pids[@]} of max $maxparallell plotting processes running. test passed."
+	else test1=1 && LOG info "TEST 1: ${#proc_pids[@]} of max $maxparallell plotting processes running. test passed."
 	fi 
 
 	# 2. maximum number of parallell plots per tempdir exceeded? specify this value in $HOME/.plotsettings with respect to available space on your preferred tempdrives
 	for ((i=0;i<${#tempdirs[@]};i++)); do 
 		proc_tempdirs=($(ps -eo cmd | grep -e "$python_venv $chia_bin plots create" | grep -o -e "\-t.* \-d.*" | awk '{print $2}' | grep ${tempdirs[${i}]} | wc -l))
 		if [ $proc_tempdirs -ge ${maxplotspertempdir[$i]} ]; then 
-			LOG info "${proc_tempdirs} of max ${maxplotspertempdir[$i]} processes plotting to  ${tempdirs[$i]}. no go."
+			LOG info "TEST 2: ${proc_tempdirs} of max ${maxplotspertempdir[$i]} processes plotting to  ${tempdirs[$i]}. no go."
 			test2=0
-		else test2=1 && LOG info "${proc_tempdirs} of max ${maxplotspertempdir[$i]} processes plotting to  ${tempdirs[$i]}. test passed." && newplot_tempdir=${tempdirs[$i]} && break
+		else test2=1 && LOG info "TEST 2: ${proc_tempdirs} of max ${maxplotspertempdir[$i]} processes plotting to  ${tempdirs[$i]}. test passed." && newplot_tempdir=${tempdirs[$i]} && break
 		fi
 	done	 
 	
-	# TODO: 3. is there any space left on $destdir?
-	freespace=$(df $destdir | tail -1 | awk '{print $4}')
+	# 3. is there any space left on the destination disks?
+	most_plots_left=0
+	LOG info "TEST 3: does destination dirs have enough space?"
+	for d in ${destdirs[@]}; do 
+		freespace=$(df -B1 $d | tail -1 | awk '{print $4}')
+		plots_left=$((${freespace}/${plot_size})) 
+		LOG info "- $d can store $plots_left more plots."
+		if [ $plots_left -gt $most_plots_left ]; then 
+			current_destdir=$d
+			most_plots_left=$plots_left
+		fi
+	done
+	
+	if [ $most_plots_left -gt 1 ]; then 
+		LOG info "TEST 3: choosing $current_destdir that has enough free space to store $most_plots_left more plots. test passed" && test3=1
+	else LOG info "TEST 3: there is not enough space left on any of the specified temp dirs. no go." && test3=0
+	fi
 
 	# 4. whats the progress of ongoing plots? 
 	closeplots=0
@@ -49,13 +64,13 @@ while true; do
 		if [ $(($t/60)) -lt $startdelay ]; then closeplots=$(($closeplots+1)); fi
 	done
 	if [ $closeplots -lt $parallstarts ]; then 
-		LOG info "$closeplots of max $parallstarts plots started the last $startdelay min. test passed."
-		test3=1
-	else test3=0 && LOG info "$closeplots of max $parallstarts plots started the last $startdelay min. no go."  
+		LOG info "TEST 4: $closeplots of max $parallstarts plots started the last $startdelay min. test passed."
+		test4=1
+	else test4=0 && LOG info "TEST 4: $closeplots of max $parallstarts plots started the last $startdelay min. no go."  
 	fi
 	
-	if [ $(($test1+$test2+$test3)) -lt 3 ]; then 
-		LOG info "sumtest equals no go. reiterating in 10 minutes"
+	if [ $(($test1+$test2+$test3+$test4)) -lt 4 ]; then 
+		LOG info "SUM TESTS equals no go. reiterating in 10 minutes"
 	else LOG success "starting new plot to $newplot_tempdir" && newplot $newplot_tempdir
 	fi
 
