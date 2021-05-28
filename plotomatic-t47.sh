@@ -18,7 +18,7 @@ while true; do
 	proc_pids=($(ps -eo pid,cmd | grep -e "$python_venv $chia_bin plots create" | awk '{print $1}' | head -n -1))
 	proc_starts=($(ps -eo start_time,cmd | grep -e "$python_venv $chia_bin plots create" | awk '{print $1}' | head -n -1))
 	proc_times=($(ps -eo etimes,cmd | grep -e "$python_venv $chia_bin plots create" | awk '{print $1}' | head -n -1))
-	proc_destdirs=($(ps -eo cmd | grep -e "$python_venv $chia_bin plots create" | grep -o -e "\-t.* \-d.*" | awk '{print $4}' | head -n -1))
+	proc_destdirs=($(ps -eo cmd | grep -e "$python_venv $chia_bin plots create" | grep -o -e "\-t.* \-d.*" | awk '{print $4}'))
 
 	# every other minute we'll do some tests to decide if starting more plots is a good idea
 
@@ -41,20 +41,27 @@ while true; do
 	done	 
 	
 	# 3. is there any space left on the destination disks?
+
 	most_plots_left=0
 	LOG info "TEST 3: does destination dirs have enough space?"
 	for d in ${destdirs[@]}; do 
 		freespace=$(df -B1 $d | tail -1 | awk '{print $4}')
 		plots_left=$((${freespace}/${plot_size})) 
-		LOG info "- $d can store $plots_left more plots."
-		if [ $plots_left -gt $most_plots_left ]; then 
-			current_destdir=$d
+
+		# how many plots with destination $d is currently ongoing? those also need to be accounted for
+		# TODO: current ongoing test works but is somewhat flawed, test should be done on device rather than path level as there might be situations with multiple paths on same device.
+
+		ongoing=$(echo ${proc_destdirs[@]} | grep $d | wc -w) 
+		actual_plots_left=$(($plots_left-$ongoing))
+		LOG info "- $d can store $actual_plots_left more plots. (there is currently enough space for $plots_left plots on device, and there is $ongoing plots with destination $d ongoing.)"
+		if [ $actual_plots_left -gt $most_plots_left ]; then 
+			newplot_destdir=$d
 			most_plots_left=$plots_left
 		fi
 	done
 	
 	if [ $most_plots_left -gt 1 ]; then 
-		LOG info "TEST 3: choosing $current_destdir that has enough free space to store $most_plots_left more plots. test passed" && test3=1
+		LOG info "TEST 3: choosing $newplot_destdir that has enough free space to store $most_plots_left more plots. test passed" && test3=1
 	else LOG info "TEST 3: there is not enough space left on any of the specified temp dirs. no go." && test3=0
 	fi
 
@@ -71,7 +78,7 @@ while true; do
 	
 	if [ $(($test1+$test2+$test3+$test4)) -lt 4 ]; then 
 		LOG info "SUM TESTS equals no go. reiterating in 10 minutes"
-	else LOG success "starting new plot to $newplot_tempdir" && newplot $newplot_tempdir
+	else LOG success "starting new plot to $newplot_tempdir" && newplot $newplot_tempdir $newplot_destdir
 	fi
 
 	echo "---"
